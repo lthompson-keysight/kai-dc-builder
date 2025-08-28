@@ -28,6 +28,7 @@ theme:
     - navigation.instant
     - navigation.tracking
     - navigation.top
+    - navigation.footer
     - content.code.copy
 extra_css:
   - stylesheets/extra.css
