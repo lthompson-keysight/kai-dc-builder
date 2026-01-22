@@ -1,0 +1,30 @@
+# DSE release 2.0 docker compose file
+# with Jupyter Notebook integration
+
+services:
+  dse:
+    container_name: ${DSE_DOCKER_NAME}
+    image: ${DSE_DOCKER_IMAGE}
+    command: --accept_eula --server_name ${SERVER_NAME} --user_name ${USER} --db_name ${DB_NAME} ${DATA_URL} ${LICENSE_SERVERS} ${FEATURES} ${PLUGINS}
+    ports:
+      - ${WEBUI}:443
+      - ${GRPC}:50001
+    restart: always
+    volumes:
+        - ${STORAGE}:/var/lib/dse
+  jupyter:
+    container_name: ${COMPOSE_PROJECT_NAME}-jupyter
+    image: jupyter/base-notebook:latest
+    ports:
+      - ${JUPYTER}:8888
+    restart: always
+    volumes:
+      - ${STORAGE}/notebooks:/home/jovyan
+      - ${HOME}/.venv/dse:/home/jovyan/.venv/dse
+      - ../bin/run-jupyter.sh:/usr/local/bin/run-jupyter.sh
+    environment:
+      - JUPYTER_TOKEN=${JUPYTER_TOKEN:-}
+      - VERSION=${VERSION:-}
+      # disable Would you like to receive official Jupyter news?
+    # This sets the default kernel for NEW notebooks to "kai-dc-builder"
+    command: bash -lc "/usr/local/bin/run-jupyter.sh"
