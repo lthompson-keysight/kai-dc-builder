@@ -65,12 +65,14 @@ nav:
     - Installation:
       - DSE Controller: deployment/controller.md
       - DFE Hardware: deployment/hardware.md
-      - DFE Software: deployment/software.md  # TODO check DFE RPM installation steps
+      - DFE Software: deployment/software.md
     - Licensing: deployment/licensing.md
     - Configure: deployment/configure.md
 #    - Demo Results: deployment/demo.md
     - Run with Compose: deployment/compose.md
     - Run with Docker: deployment/docker.md
+  - Reference:
+    - Storage: reference/storage.md
   - Automation:
     - Overview: devguide/overview.md
     - Client API Reference:
