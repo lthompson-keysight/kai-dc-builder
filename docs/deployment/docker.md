@@ -17,18 +17,17 @@ source "${REPODIR}/aidc/.env"
 To start the controller, use
 
 ```bash
-mkdir -p "${STORAGE}/log"
-docker run --rm -d\
-    --name ${DOCKER_NAME} \
+docker run --rm -d \
+    --name ${DSE_DOCKER_NAME} \
     -p ${WEBUI}:443 \
     -p ${GRPC}:50001 \
-    -v ${STORAGE}:/dse-storage \
-    -v ${STORAGE}/log:/var/log \
-    ${ENV_ARGS} \
-    ${REGISTRY}/keysight_dse_server:${VERSION} \
+    -v ${STORAGE}:/var/lib/dse \
+    ${DSE_DOCKER_IMAGE} \
     --accept_eula \
     --server_name ${SERVER_NAME} \
-    --fs_url osfs:///dse-storage \
+    --user_name ${USER} \
+    --db_name ${DB_NAME} \
+    ${DATA_URL} \
     ${LICENSE_SERVERS} \
     ${FEATURES} \
     ${PLUGINS}
@@ -37,11 +36,11 @@ docker run --rm -d\
 To display logs
 
 ```bash
-docker logs -f "${DOCKER_NAME}"
+docker logs -f "${DSE_DOCKER_NAME}"
 ```
 
 ## Stopping
 
 ```bash
-docker stop "${DOCKER_NAME}"
+docker stop "${DSE_DOCKER_NAME}"
 ```

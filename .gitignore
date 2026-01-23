@@ -1,5 +1,7 @@
 .DS_Store
+.vscode
 venv
+.venv
 .env*
 *.crt
 *.key
@@ -16,3 +18,5 @@ deploy_key.pub
 downloads/*
 site
 REALLY_README.md
+*.whl
+notebooks/.*
