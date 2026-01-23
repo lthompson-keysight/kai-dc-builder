@@ -1,4 +1,0 @@
-keysight_dse_client
-keysight_dse_models
-keysight_chakra
-matplotlib
