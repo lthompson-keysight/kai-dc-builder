@@ -10,7 +10,5 @@ venv
 *.deb
 *.bkp
 *.out
-deploy_key
-deploy_key.pub
 downloads/*
 site
