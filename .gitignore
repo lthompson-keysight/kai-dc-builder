@@ -8,11 +8,9 @@ venv
 *.waf
 *.rpm
 *.deb
-*.tar.gz
 *.bkp
 *.out
 deploy_key
 deploy_key.pub
 downloads/*
 site
-REALLY_README.md
