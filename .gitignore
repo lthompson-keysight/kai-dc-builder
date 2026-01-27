@@ -12,3 +12,4 @@ venv
 *.out
 downloads/*
 site
+REALLY_README.md
