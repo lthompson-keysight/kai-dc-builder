@@ -1,12 +1,13 @@
+# DSE release 2.0 docker compose file
+
 services:
-  dse-server:
-    container_name: dse-${NAME}
+  dse:
+    container_name: ${DSE_DOCKER_NAME}
     image: ${DSE_DOCKER_IMAGE}
-    command: --accept_eula --server_name ${NAME} --fs_url osfs:///dse-storage ${LICENSE_SERVERS} ${FEATURES} ${PLUGINS}
+    command: --accept_eula --server_name ${SERVER_NAME} --user_name ${USER} --db_name ${DB_NAME} ${DATA_URL} ${LICENSE_SERVERS} ${FEATURES} ${PLUGINS}
     ports:
       - ${WEBUI}:443
       - ${GRPC}:50001
     restart: always
     volumes:
-        - ${STORAGE}:/dse-storage
-        - ${STORAGE}/log:/var/log
+        - ${STORAGE}:/var/lib/dse

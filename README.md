@@ -22,4 +22,4 @@ Read the [EULA](docs/eula.md) for information about the copyright and license of
 
 
 ## Copyright notice
-© Copyright Keysight Technologies, Inc. 2023, 2024, 2025, 2026. All rights reserved.
+© Copyright Keysight Technologies, Inc. 2023, 2024, 2025.
