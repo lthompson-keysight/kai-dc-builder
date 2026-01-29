@@ -134,19 +134,19 @@ jobs:
       - name: Start stack with Docker Compose
         run: |
           cd build-context
-          docker compose -f compose.all.yml up -d
+          docker compose --env-file compose.all.env -f compose.all.yml up -d
 
       - name: Wait for ingress to be healthy
         run: |
           for i in {1..30}; do
             sleep 2
-            if docker compose -f build-context/compose.all.yml ps | grep ingress | grep -q healthy; then
+            if docker compose --env-file build-context/compose.all.env -f build-context/compose.all.yml ps | grep ingress | grep -q healthy; then
               break
             fi
             if [ $i -eq 30 ]; then
               echo "Ingress did not become healthy in time" >&2
-              docker compose -f build-context/compose.all.yml logs
-              docker compose -f build-context/compose.all.yml down
+              docker compose --env-file build-context/compose.all.env -f build-context/compose.all.yml logs
+              docker compose --env-file build-context/compose.all.env -f build-context/compose.all.yml down
               exit 1
             fi
           done
@@ -167,7 +167,7 @@ jobs:
       - name: Stop ingress container
         if: always()
         run: |
-          docker rm -f ingress-test || true
+          docker compose --env-file build-context/compose.all.env -f build-context/compose.all.yml down || true
 
   publish-artifacts:
     needs: [build-ingress, test-integration]
