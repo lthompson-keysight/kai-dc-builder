@@ -79,18 +79,84 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image
+      - name: Build Docker image (no push)
         if: steps.check-version.outputs.exists == 'false'
         uses: docker/build-push-action@v5
         with:
           context: build-context
-          push: true
+          push: false
           tags: ${{ steps.docker-tags.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+  test-integration:
+    needs: build-and-publish
+    runs-on: ubuntu-latest
+    if: needs.build-and-publish.outputs.version-exists == 'false'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract artifacts from tarball
+        run: |
+          rm -rf build-context
+          mkdir -p build-context
+          tar -xzf build/ingress_artifacts.tar.gz -C build-context
+          if [ -d build-context/ingress_artifacts ]; then
+            mv build-context/ingress_artifacts/* build-context/
+            rmdir build-context/ingress_artifacts
+          fi
+
+      - name: Build ingress Docker image for compose
+        run: |
+          cd build-context
+          docker build -t keys-dse-ingress:${{ needs.build-and-publish.outputs.dsever }} .
+
+
+
+      - name: Set INGRESS_DOCKER_IMAGE for compose
+        run: |
+          echo "INGRESS_DOCKER_IMAGE=keys-dse-ingress:${{ needs.build-and-publish.outputs.dsever }}" >> $GITHUB_ENV
+
+      - name: Start stack with Docker Compose
+        run: |
+          cd build-context
+          docker compose -f compose.all.yml up -d
+
+      - name: Wait for ingress to be healthy
+        run: |
+          for i in {1..30}; do
+            sleep 2
+            if docker compose -f build-context/compose.all.yml ps | grep ingress | grep -q healthy; then
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "Ingress did not become healthy in time" >&2
+              docker compose -f build-context/compose.all.yml logs
+              docker compose -f build-context/compose.all.yml down
+              exit 1
+            fi
+          done
+
+      - name: Install Python dependencies for integration test
+        run: |
+          pip install grpcio grpcio-tools
+          # If proto stubs are not present, fail with a clear message
+          if [ ! -f build-context/common_pb2.py ] || [ ! -f build-context/common_pb2_grpc.py ]; then
+            echo "common_pb2.py and common_pb2_grpc.py must be present in build-context for integration test." >&2
+            exit 1
+          fi
+
+      - name: Run integration test (Python)
+        run: |
+          python3 build-context/test_integration.py
+
+      - name: Stop ingress container
+        if: always()
+        run: |
+          docker rm -f ingress-test || true
 
   publish-artifacts:
-    needs: build-and-publish
+    needs: [build-and-publish, test-integration]
     runs-on: ubuntu-latest
     if: needs.build-and-publish.outputs.version-exists == 'false'
     steps:
