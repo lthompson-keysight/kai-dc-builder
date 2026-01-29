@@ -12,7 +12,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          'bash -c ''for port in 50001 49999 443; do echo "Checking $port"; timeout 2 bash -c "echo > /dev/tcp/localhost/$port" && echo "$port OK" || (echo "$port FAIL"; exit 1); done''',
+          'sh -c ''for port in 50001 49999 443; do echo "Checking $port"; nc -z localhost $port && echo "$port OK" || (echo "$port FAIL"; exit 1); done''',
         ]
       interval: 2s
       timeout: 3s
