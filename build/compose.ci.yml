@@ -1,22 +1,22 @@
 services:
-#  dse-server:
-#    container_name: ${SERVER_NAME}
-#    image: ${DSE_DOCKER_IMAGE}
-#    command: --accept_eula --server_name ${SERVER_NAME} --ui_webapp_port ${WEBUI} --fs_url osfs:///dse-storage ${LICENSE_SERVERS} ${FEATURES} ${PLUGINS}
-#    expose:
-#      - "${WEBUI}"
-#      - "${GRPC1}"
-#      - "${GRPC2}"
-#    restart: always
-#    volumes:
-#        - ${STORAGE}:/dse-storage
-#        - ${STORAGE}/log:/var/log
-#    healthcheck:
-#      test: ["CMD-SHELL", "timeout 2 bash -c 'echo > /dev/tcp/localhost/50001 && echo > /dev/tcp/localhost/49999 && echo > /dev/tcp/localhost/443' || exit 1"]
-#      interval: 2s
-#      timeout: 3s
-#      retries: 15
-#      start_period: 10s
+  #  dse-server:
+  #    container_name: ${SERVER_NAME}
+  #    image: ${DSE_DOCKER_IMAGE}
+  #    command: --accept_eula --server_name ${SERVER_NAME} --ui_webapp_port ${WEBUI} --fs_url osfs:///dse-storage ${LICENSE_SERVERS} ${FEATURES} ${PLUGINS}
+  #    expose:
+  #      - "${WEBUI}"
+  #      - "${GRPC1}"
+  #      - "${GRPC2}"
+  #    restart: always
+  #    volumes:
+  #        - ${STORAGE}:/dse-storage
+  #        - ${STORAGE}/log:/var/log
+  #    healthcheck:
+  #      test: ["CMD-SHELL", "timeout 2 bash -c 'echo > /dev/tcp/localhost/50001 && echo > /dev/tcp/localhost/49999 && echo > /dev/tcp/localhost/443' || exit 1"]
+  #      interval: 2s
+  #      timeout: 3s
+  #      retries: 15
+  #      start_period: 10s
   ingress:
     container_name: ${INGRESS_NAME}
     hostname: ${INGRESS_NAME}
@@ -26,7 +26,6 @@ services:
       - ${WEBUI}:${WEBUI}
     extra_hosts:
       - "host.docker.internal:host-gateway"
-      dse-server:
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "timeout 2 sh -c '</dev/tcp/localhost/443' || exit 1"]
