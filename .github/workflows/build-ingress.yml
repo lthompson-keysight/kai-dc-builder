@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       dsever: ${{ steps.extract-version.outputs.dsever }}
+      ingressver: ${{ steps.extract-version.outputs.ingressver }}
       version-exists: ${{ steps.check-version.outputs.exists }}
     steps:
       - name: Checkout repository
@@ -72,15 +73,12 @@ jobs:
         if: steps.check-version.outputs.exists == 'false'
         id: docker-tags
         run: |
-          DSEVER=${{ steps.extract-version.outputs.dsever }}
-          if [ -z "$DSEVER" ]; then
-            echo "Missing DSEVER; aborting tag creation" >&2
+          INGRESSVER=${{ steps.extract-version.outputs.ingressver }}
+          if [ -z "$INGRESSVER" ]; then
+            echo "Missing INGRESSVER; aborting tag creation" >&2
             exit 1
           fi
-          TAGS="ghcr.io/lthompson-keysight/kai-dc-builder:${DSEVER}"
-          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            TAGS="${TAGS},ghcr.io/lthompson-keysight/kai-dc-builder:latest"
-          fi
+          TAGS="ghcr.io/lthompson-keysight/kai-dc-builder:${INGRESSVER},ghcr.io/lthompson-keysight/kai-dc-builder:latest"
           echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
@@ -189,6 +187,13 @@ jobs:
             rmdir build-context/ingress_artifacts
           fi
 
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Prepare versioned compose files
         run: |
           DSEVER=${{ needs.build-ingress.outputs.dsever }}
@@ -196,18 +201,27 @@ jobs:
           cp build-context/compose.all.yml compose.all.${DSEVER}.yml
           echo "Prepared compose.all.${DSEVER}.env and compose.all.${DSEVER}.yml"
 
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: build-context
+          push: true
+          tags: ghcr.io/lthompson-keysight/kai-dc-builder:${{ needs.build-ingress.outputs.ingressver }},ghcr.io/lthompson-keysight/kai-dc-builder:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
       - name: Create GitHub Release (main branch)
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ needs.build-ingress.outputs.dsever }}
+          tag_name: v${{ needs.build-ingress.outputs.ingressver }}
           files: |
             compose.all.${{ needs.build-ingress.outputs.dsever }}.env
             compose.all.${{ needs.build-ingress.outputs.dsever }}.yml
           body: |
-            Ingress Controller version ${{ needs.build-ingress.outputs.dsever }}
+            Ingress Controller version ${{ needs.build-ingress.outputs.ingressver }}
             
-            Docker Image: ghcr.io/lthompson-keysight/kai-dc-builder:${{ needs.build-ingress.outputs.dsever }}
+            Docker Image: ghcr.io/lthompson-keysight/kai-dc-builder:${{ needs.build-ingress.outputs.ingressver }}
 
       - name: Upload artifacts (non-main branch)
         if: github.ref != 'refs/heads/main'
