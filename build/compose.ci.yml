@@ -21,7 +21,7 @@ services:
     container_name: ${INGRESS_NAME}
     hostname: ${INGRESS_NAME}
     image: ${INGRESS_DOCKER_IMAGE}
-    command: --app_port ${WEBUI} --routes ""
+    command: --app_port ${WEBUI} --routes "test/localhost:8080"
     ports:
       - ${WEBUI}:${WEBUI}
     extra_hosts:
