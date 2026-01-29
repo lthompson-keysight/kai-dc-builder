@@ -9,7 +9,7 @@ permissions:
   packages: write
 
 jobs:
-  build-and-publish:
+  build-ingress:
     runs-on: ubuntu-latest
     outputs:
       dsever: ${{ steps.extract-version.outputs.dsever }}
@@ -29,27 +29,43 @@ jobs:
           fi
           ls -la build-context/
 
-      - name: Extract DSEVER version
+
+      - name: Extract DSEVER and INGRESSVER versions
         id: extract-version
         run: |
           DSEVER=$(grep '^DSEVER=' build-context/compose.all.env | head -n1 | cut -d= -f2 | tr -d '\r' | xargs)
+          INGRESSVER=$(grep '^INGRESSVER=' build-context/compose.all.env | head -n1 | cut -d= -f2 | tr -d '\r' | xargs)
           if [ -z "$DSEVER" ]; then
             echo "DSEVER is empty; check compose.all.env" >&2
             exit 1
           fi
+          if [ -z "$INGRESSVER" ]; then
+            echo "INGRESSVER is empty; check compose.all.env" >&2
+            exit 1
+          fi
           echo "dsever=$DSEVER" >> "$GITHUB_OUTPUT"
-          echo "Extracted DSEVER: $DSEVER"
+          echo "ingressver=$INGRESSVER" >> "$GITHUB_OUTPUT"
+          echo "Extracted DSEVER: $DSEVER, INGRESSVER: $INGRESSVER"
 
       - name: Check if version already exists in registry
         id: check-version
         run: |
           DSEVER=${{ steps.extract-version.outputs.dsever }}
+          INGRESSVER=${{ steps.extract-version.outputs.ingressver }}
+          EXISTS_DSEVER=false
+          EXISTS_INGRESSVER=false
           if docker manifest inspect ghcr.io/lthompson-keysight/kai-dc-builder:${DSEVER} > /dev/null 2>&1; then
+            EXISTS_DSEVER=true
+          fi
+          if docker manifest inspect ghcr.io/lthompson-keysight/kai-dc-builder:${INGRESSVER} > /dev/null 2>&1; then
+            EXISTS_INGRESSVER=true
+          fi
+          if $EXISTS_DSEVER && $EXISTS_INGRESSVER; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "Image version $DSEVER already exists in registry"
+            echo "Image versions $DSEVER and $INGRESSVER already exist in registry"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "Image version $DSEVER does not exist, will build"
+            echo "At least one of $DSEVER or $INGRESSVER does not exist, will build"
           fi
 
       - name: Determine Docker tags
@@ -89,9 +105,9 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
   test-integration:
-    needs: build-and-publish
+    needs: build-ingress
     runs-on: ubuntu-latest
-    if: needs.build-and-publish.outputs.version-exists == 'false'
+    if: needs.build-ingress.outputs.version-exists == 'false'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -109,13 +125,13 @@ jobs:
       - name: Build ingress Docker image for compose
         run: |
           cd build-context
-          docker build -t keys-dse-ingress:${{ needs.build-and-publish.outputs.dsever }} .
+          docker build -t keys-dse-ingress:${{ needs.build-ingress.outputs.dsever }} .
 
 
 
       - name: Set INGRESS_DOCKER_IMAGE for compose
         run: |
-          echo "INGRESS_DOCKER_IMAGE=keys-dse-ingress:${{ needs.build-and-publish.outputs.dsever }}" >> $GITHUB_ENV
+          echo "INGRESS_DOCKER_IMAGE=keys-dse-ingress:${{ needs.build-ingress.outputs.dsever }}" >> $GITHUB_ENV
 
       - name: Start stack with Docker Compose
         run: |
@@ -156,9 +172,9 @@ jobs:
           docker rm -f ingress-test || true
 
   publish-artifacts:
-    needs: [build-and-publish, test-integration]
+    needs: [build-ingress, test-integration]
     runs-on: ubuntu-latest
-    if: needs.build-and-publish.outputs.version-exists == 'false'
+    if: needs.build-ingress.outputs.version-exists == 'false'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -175,7 +191,7 @@ jobs:
 
       - name: Prepare versioned compose files
         run: |
-          DSEVER=${{ needs.build-and-publish.outputs.dsever }}
+          DSEVER=${{ needs.build-ingress.outputs.dsever }}
           cp build-context/compose.all.env compose.all.${DSEVER}.env
           cp build-context/compose.all.yml compose.all.${DSEVER}.yml
           echo "Prepared compose.all.${DSEVER}.env and compose.all.${DSEVER}.yml"
@@ -184,21 +200,21 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ needs.build-and-publish.outputs.dsever }}
+          tag_name: v${{ needs.build-ingress.outputs.dsever }}
           files: |
-            compose.all.${{ needs.build-and-publish.outputs.dsever }}.env
-            compose.all.${{ needs.build-and-publish.outputs.dsever }}.yml
+            compose.all.${{ needs.build-ingress.outputs.dsever }}.env
+            compose.all.${{ needs.build-ingress.outputs.dsever }}.yml
           body: |
-            Ingress Controller version ${{ needs.build-and-publish.outputs.dsever }}
+            Ingress Controller version ${{ needs.build-ingress.outputs.dsever }}
             
-            Docker Image: ghcr.io/lthompson-keysight/kai-dc-builder:${{ needs.build-and-publish.outputs.dsever }}
+            Docker Image: ghcr.io/lthompson-keysight/kai-dc-builder:${{ needs.build-ingress.outputs.dsever }}
 
       - name: Upload artifacts (non-main branch)
         if: github.ref != 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
-          name: ingress-compose-${{ needs.build-and-publish.outputs.dsever }}
+          name: ingress-compose-${{ needs.build-ingress.outputs.dsever }}
           path: |
-            compose.all.${{ needs.build-and-publish.outputs.dsever }}.env
-            compose.all.${{ needs.build-and-publish.outputs.dsever }}.yml
+            compose.all.${{ needs.build-ingress.outputs.dsever }}.env
+            compose.all.${{ needs.build-ingress.outputs.dsever }}.yml
           retention-days: 90
