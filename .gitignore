@@ -12,3 +12,4 @@ venv
 *.out
 downloads/*
 site
+build_context/

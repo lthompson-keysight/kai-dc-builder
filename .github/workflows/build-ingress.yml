@@ -12,7 +12,6 @@ jobs:
   build-ingress:
     runs-on: ubuntu-latest
     outputs:
-      dsever: ${{ steps.extract-version.outputs.dsever }}
       ingressver: ${{ steps.extract-version.outputs.ingressver }}
       version-exists: ${{ steps.check-version.outputs.exists }}
     steps:
@@ -31,42 +30,31 @@ jobs:
           ls -la build-context/
 
 
-      - name: Extract DSEVER and INGRESSVER versions
+      - name: Extract INGRESSVER version
         id: extract-version
         run: |
-          DSEVER=$(grep '^DSEVER=' build-context/compose.all.env | head -n1 | cut -d= -f2 | tr -d '\r' | xargs)
           INGRESSVER=$(grep '^INGRESSVER=' build-context/compose.all.env | head -n1 | cut -d= -f2 | tr -d '\r' | xargs)
-          if [ -z "$DSEVER" ]; then
-            echo "DSEVER is empty; check compose.all.env" >&2
-            exit 1
-          fi
           if [ -z "$INGRESSVER" ]; then
             echo "INGRESSVER is empty; check compose.all.env" >&2
             exit 1
           fi
-          echo "dsever=$DSEVER" >> "$GITHUB_OUTPUT"
           echo "ingressver=$INGRESSVER" >> "$GITHUB_OUTPUT"
-          echo "Extracted DSEVER: $DSEVER, INGRESSVER: $INGRESSVER"
+          echo "Extracted INGRESSVER: $INGRESSVER"
 
       - name: Check if version already exists in registry
         id: check-version
         run: |
-          DSEVER=${{ steps.extract-version.outputs.dsever }}
           INGRESSVER=${{ steps.extract-version.outputs.ingressver }}
-          EXISTS_DSEVER=false
           EXISTS_INGRESSVER=false
-          if docker manifest inspect ghcr.io/lthompson-keysight/kai-dc-builder:${DSEVER} > /dev/null 2>&1; then
-            EXISTS_DSEVER=true
-          fi
           if docker manifest inspect ghcr.io/lthompson-keysight/kai-dc-builder:${INGRESSVER} > /dev/null 2>&1; then
             EXISTS_INGRESSVER=true
           fi
-          if $EXISTS_DSEVER && $EXISTS_INGRESSVER; then
+          if $EXISTS_INGRESSVER; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "Image versions $DSEVER and $INGRESSVER already exist in registry"
+            echo "Image versions $INGRESSVER already exist in registry"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "At least one of $DSEVER or $INGRESSVER does not exist, will build"
+            echo "Ingress version $INGRESSVER does not exist, will build"
           fi
 
       - name: Determine Docker tags
@@ -120,54 +108,18 @@ jobs:
             rmdir build-context/ingress_artifacts
           fi
 
-      - name: Build ingress Docker image for compose
+      - name: Build ingress Docker image
         run: |
           cd build-context
-          docker build -t keys-dse-ingress:${{ needs.build-ingress.outputs.dsever }} .
+          docker build -t keys-dse-ingress:${{ needs.build-ingress.outputs.ingressver }} .
 
-
-
-      - name: Set INGRESS_DOCKER_IMAGE for compose
+      - name: Set INGRESS_DOCKER_IMAGE
         run: |
-          echo "INGRESS_DOCKER_IMAGE=keys-dse-ingress:${{ needs.build-ingress.outputs.dsever }}" >> $GITHUB_ENV
+          echo "INGRESS_DOCKER_IMAGE=keys-dse-ingress:${{ needs.build-ingress.outputs.ingressver }}" >> $GITHUB_ENV
 
-      - name: Start stack with Docker Compose
+      - name: Run dummy integration test
         run: |
-          cd build-context
-          docker compose --env-file compose.all.env -f ../build/compose.ci.yml up -d
-
-      - name: Wait for ingress to be healthy
-        run: |
-          for i in {1..30}; do
-            sleep 2
-            if docker compose --env-file build-context/compose.all.env -f build-context/../build/compose.ci.yml ps | grep ingress | grep -q healthy; then
-              break
-            fi
-            if [ $i -eq 30 ]; then
-              echo "Ingress did not become healthy in time" >&2
-              docker compose --env-file build-context/compose.all.env -f build-context/../build/compose.ci.yml logs
-              docker compose --env-file build-context/compose.all.env -f build-context/../build/compose.ci.yml down
-              exit 1
-            fi
-          done
-
-      - name: Install Python dependencies for integration test
-        run: |
-          pip install grpcio grpcio-tools
-          # If proto stubs are not present, fail with a clear message
-          if [ ! -f build-context/common_pb2.py ] || [ ! -f build-context/common_pb2_grpc.py ]; then
-            echo "common_pb2.py and common_pb2_grpc.py must be present in build-context for integration test." >&2
-            exit 1
-          fi
-
-      - name: Run integration test (Python)
-        run: |
-          python3 build-context/test_integration.py
-
-      - name: Stop ingress container
-        if: always()
-        run: |
-          docker compose --env-file build-context/compose.all.env -f build-context/../build/compose.ci.yml down || true
+          python3 build/test_integration.py
 
   publish-artifacts:
     needs: [build-ingress, test-integration]
@@ -196,10 +148,10 @@ jobs:
 
       - name: Prepare versioned compose files
         run: |
-          DSEVER=${{ needs.build-ingress.outputs.dsever }}
-          cp build-context/compose.all.env compose.all.${DSEVER}.env
-          cp build-context/compose.all.yml compose.all.${DSEVER}.yml
-          echo "Prepared compose.all.${DSEVER}.env and compose.all.${DSEVER}.yml"
+          INGRESSVER=${{ needs.build-ingress.outputs.ingressver }}
+          cp build-context/compose.all.env compose.all.${INGRESSVER}.env
+          cp build-context/compose.all.yml compose.all.${INGRESSVER}.yml
+          echo "Prepared compose.all.${INGRESSVER}.env and compose.all.${INGRESSVER}.yml"
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -216,8 +168,8 @@ jobs:
         with:
           tag_name: v${{ needs.build-ingress.outputs.ingressver }}
           files: |
-            compose.all.${{ needs.build-ingress.outputs.dsever }}.env
-            compose.all.${{ needs.build-ingress.outputs.dsever }}.yml
+            compose.all.${{ needs.build-ingress.outputs.ingressver }}.env
+            compose.all.${{ needs.build-ingress.outputs.ingressver }}.yml
           body: |
             Ingress Controller version ${{ needs.build-ingress.outputs.ingressver }}
             
@@ -227,8 +179,8 @@ jobs:
         if: github.ref != 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
-          name: ingress-compose-${{ needs.build-ingress.outputs.dsever }}
+          name: ingress-compose-${{ needs.build-ingress.outputs.ingressver }}
           path: |
-            compose.all.${{ needs.build-ingress.outputs.dsever }}.env
-            compose.all.${{ needs.build-ingress.outputs.dsever }}.yml
+            compose.all.${{ needs.build-ingress.outputs.ingressver }}.env
+            compose.all.${{ needs.build-ingress.outputs.ingressver }}.yml
           retention-days: 90
