@@ -28,9 +28,11 @@ test-integration:
 	fi
 	@echo "Starting ingress container for testing..."
 	@docker rm -f keys-dse-ingress >/dev/null 2>&1 || true
-	@docker run -d --name keys-dse-ingress -p 443:443 keys_dse_ingress:latest --app_port 443 --routes "default/localhost:8080"
+	@docker run -d --name keys-dse-ingress -p 8080:443 keys_dse_ingress:latest --app_port 443 --routes "default/localhost:8080"
+	@echo "Waiting for container to fully start..."
+	@sleep 3
 	@echo "Running integration tests..."
-	@python3 build/test_integration.py --ingress-host localhost
+	@python3 build/test_integration.py --ingress-host localhost --ingress-port 8080
 	@echo "Stopping test container..."
 	@docker rm -f keys-dse-ingress >/dev/null 2>&1 || true
 	@echo "Integration test complete."
