@@ -117,9 +117,9 @@ jobs:
         run: |
           echo "INGRESS_DOCKER_IMAGE=keys-dse-ingress:${{ needs.build-ingress.outputs.ingressver }}" >> $GITHUB_ENV
 
-      - name: Run dummy integration test
+      - name: Run integration test
         run: |
-          python3 build/test_integration.py
+          make test-integration
 
   publish-artifacts:
     needs: [build-ingress, test-integration]
