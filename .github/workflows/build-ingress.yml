@@ -86,7 +86,7 @@ jobs:
       - name: Save Docker image
         if: steps.check-version.outputs.exists == 'false'
         run: |
-          docker save ${{ steps.docker-tags.outputs.tags }} -o image.tar
+          docker save $(echo ${{ steps.docker-tags.outputs.tags }} | tr ',' ' ') -o image.tar
 
       - name: Upload Docker image artifact
         if: steps.check-version.outputs.exists == 'false'
